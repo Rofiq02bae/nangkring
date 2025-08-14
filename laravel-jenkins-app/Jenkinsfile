@@ -1,0 +1,43 @@
+pipeline {
+    agent any
+
+    stages {
+        stage('Install Dependencies') {
+            steps {
+                script {
+                    // Install PHP dependencies
+                    sh 'docker-compose run app composer install'
+                    // Install Node.js dependencies
+                    sh 'docker-compose run app npm install'
+                }
+            }
+        }
+
+        stage('Build Assets') {
+            steps {
+                script {
+                    // Build assets using Vite
+                    sh 'docker-compose run app npm run build'
+                }
+            }
+        }
+
+        stage('Run Migrations') {
+            steps {
+                script {
+                    // Run database migrations
+                    sh 'docker-compose run app php artisan migrate'
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Pipeline completed successfully!'
+        }
+        failure {
+            echo 'Pipeline failed.'
+        }
+    }
+}

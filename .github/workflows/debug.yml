@@ -1,0 +1,61 @@
+name: Debug Laravel CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: pdo_mysql, mbstring, bcmath, gd, intl, curl, zip
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --prefer-dist --optimize-autoloader
+        working-directory: ./laravel-jenkins-app/src
+
+      - name: Install NPM dependencies
+        run: npm install
+        working-directory: ./laravel-jenkins-app/src
+
+      - name: Build assets
+        run: npm run build
+        working-directory: ./laravel-jenkins-app/src
+
+      - name: List files for debug
+        run: |
+          pwd
+          ls -lah
+          ls -lah ./laravel-jenkins-app/src
+
+      - name: Print environment variables
+        run: env
+
+      - name: PHP version
+        run: php -v
+
+      - name: Node version
+        run: node -v
+
+      - name: Composer version
+        run: composer --version
+
+      - name: NPM version
+        run: npm -v
+
+      - name: Fail step for manual debug
+        run: exit 1
+        continue-on-error: true
