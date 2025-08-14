@@ -1,18 +1,59 @@
-# Laravel Jenkins CI/CD Project
+# 🚀 Laravel 12 + Vite + Jenkins CI/CD
 
-This project is a Laravel 12 application configured with Docker and integrated with Jenkins for Continuous Integration and Continuous Deployment (CI/CD). The setup includes a MySQL database and utilizes Vite for asset bundling.
+Project Laravel 12 dengan Vite dan Jenkins CI/CD menggunakan Docker untuk development dan production environment.
 
-## Project Structure
+## 📁 Struktur Project
 
 ```
-laravel-jenkins-app
-├── Dockerfile
-├── docker-compose.yml
-├── Jenkinsfile
-├── src
-│   └── (Laravel project files)
-└── README.md
+laravel-jenkins-app/
+├── src/                    # Laravel 12 application
+├── Dockerfile             # PHP 8.2 + Node.js 20 + Extensions
+├── docker-compose.yml     # Laravel + MySQL + Jenkins services
+├── Jenkinsfile           # CI/CD Pipeline configuration
+├── setup.sh              # Quick setup script
+├── JENKINS_SETUP.md      # Detailed Jenkins setup guide
+└── README.md             # This file
 ```
+
+## 🔧 Quick Start
+
+### 1. Clone Repository
+```bash
+git clone https://github.com/Rofiq02bae/nangkring.git
+cd nangkring/laravel-jenkins-app
+```
+
+### 2. Start Services
+```bash
+# Make setup script executable
+chmod +x setup.sh
+
+# Run quick setup
+./setup.sh
+```
+
+### 3. Access Services
+- **Laravel App**: http://localhost:8000
+- **Jenkins**: http://localhost:8080
+- **MySQL**: localhost:3306
+
+## 🏗️ Tech Stack
+
+- **Backend**: Laravel 12 (PHP 8.2)
+- **Frontend**: Vite + JavaScript
+- **Database**: MySQL 8.0
+- **CI/CD**: Jenkins LTS
+- **Containerization**: Docker + Docker Compose
+
+## 📦 PHP Extensions Included
+
+- `pdo_mysql` - MySQL database support
+- `mbstring` - Multibyte string support
+- `bcmath` - Arbitrary precision mathematics
+- `gd` - Image processing
+- `intl` - Internationalization
+- `curl` - HTTP client
+- `zip` - Archive handling
 
 ## Requirements
 
