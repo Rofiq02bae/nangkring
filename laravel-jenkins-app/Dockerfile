@@ -42,7 +42,7 @@ RUN npm install
 # Build assets
 RUN npm run build
 
-# Expose port 8000
-EXPOSE 8000
+# Expose port 9000 for PHP-FPM
+EXPOSE 9000
 
 CMD ["php-fpm"]

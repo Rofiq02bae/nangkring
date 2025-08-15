@@ -9,7 +9,7 @@ echo "🔧 Starting Jenkins CI/CD Setup..."
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+NC='\033[0m' # No service "app" refers to undefined network app-network: invalid compose project
 
 # Check if Docker is running
 if ! docker info > /dev/null 2>&1; then
