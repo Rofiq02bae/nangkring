@@ -54,13 +54,14 @@ jobs:
       - name: Update docker-compose.yml with new image
         run: |
           # Update image reference in docker-compose.yml
-          sed -i "s|build:|# build:|g" laravel-jenkins-app/docker-compose.yml
-          sed -i "s|context: .|# context: .|g" laravel-jenkins-app/docker-compose.yml
-          sed -i "s|dockerfile: Dockerfile|# dockerfile: Dockerfile|g" laravel-jenkins-app/docker-compose.yml
-          sed -i "/image: laravel-app:latest/c\    image: ${{ env.DOCKER_HUB_USERNAME }}/${{ env.LARAVEL_IMAGE_NAME }}:latest" laravel-jenkins-app/docker-compose.yml
+          sed -i "s|# build:|# build:|g" laravel-jenkins-app/docker-compose.yml
+          sed -i "s|# context: .|# context: .|g" laravel-jenkins-app/docker-compose.yml
+          sed -i "s|# dockerfile: Dockerfile|# dockerfile: Dockerfile|g" laravel-jenkins-app/docker-compose.yml
+          sed -i "s|image: rofiq02bae/laravel-vite-app:latest|image: ${{ env.DOCKER_HUB_USERNAME }}/${{ env.LARAVEL_IMAGE_NAME }}:latest|g" laravel-jenkins-app/docker-compose.yml
 
       - name: Verify Docker image
         run: |
+          echo "🔍 Verifying Docker image..."
           docker pull ${{ env.DOCKER_HUB_USERNAME }}/${{ env.LARAVEL_IMAGE_NAME }}:latest
           docker run --rm ${{ env.DOCKER_HUB_USERNAME }}/${{ env.LARAVEL_IMAGE_NAME }}:latest php --version
 
