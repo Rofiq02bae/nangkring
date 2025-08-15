@@ -1,0 +1,99 @@
+name: Build and Push Docker Images
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  DOCKER_HUB_USERNAME: rofiq02bae
+  LARAVEL_IMAGE_NAME: laravel-vite-app
+  
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ env.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.DOCKER_HUB_USERNAME }}/${{ env.LARAVEL_IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Laravel Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./laravel-jenkins-app
+          file: ./laravel-jenkins-app/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          platforms: linux/amd64,linux/arm64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Update docker-compose.yml with new image
+        run: |
+          # Update image reference in docker-compose.yml
+          sed -i "s|build:|# build:|g" laravel-jenkins-app/docker-compose.yml
+          sed -i "s|context: .|# context: .|g" laravel-jenkins-app/docker-compose.yml
+          sed -i "s|dockerfile: Dockerfile|# dockerfile: Dockerfile|g" laravel-jenkins-app/docker-compose.yml
+          sed -i "/image: laravel-app:latest/c\    image: ${{ env.DOCKER_HUB_USERNAME }}/${{ env.LARAVEL_IMAGE_NAME }}:latest" laravel-jenkins-app/docker-compose.yml
+
+      - name: Verify Docker image
+        run: |
+          docker pull ${{ env.DOCKER_HUB_USERNAME }}/${{ env.LARAVEL_IMAGE_NAME }}:latest
+          docker run --rm ${{ env.DOCKER_HUB_USERNAME }}/${{ env.LARAVEL_IMAGE_NAME }}:latest php --version
+
+  security-scan:
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'rofiq02bae/laravel-vite-app:latest'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [build-and-push, security-scan]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy notification
+        run: |
+          echo "🚀 Docker image rofiq02bae/laravel-vite-app:latest successfully built and pushed!"
+          echo "📦 Image size: $(docker manifest inspect rofiq02bae/laravel-vite-app:latest | jq '.config.size')"
+          echo "🔗 Docker Hub: https://hub.docker.com/r/rofiq02bae/laravel-vite-app"

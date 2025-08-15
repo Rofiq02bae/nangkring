@@ -2,9 +2,13 @@ version: '3.8'
 
 services:
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    # Uncomment for local build:
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile
+    # Use pre-built image from Docker Hub:
+    image: rofiq02bae/laravel-vite-app:latest
+    container_name: laravel-app
     ports:
       - "8000:8000"
     volumes:
