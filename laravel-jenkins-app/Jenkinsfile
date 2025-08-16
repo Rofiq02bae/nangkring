@@ -6,92 +6,160 @@ pipeline {
         COMPOSE_FILE = 'laravel-jenkins-app/docker-compose.yml'
     }
     
+    // stage('Checkout') {
+    //     steps {
+    //         script {
+    //             // Checkout code from GitHub repository
+    //             git branch: 'main', 
+    //                 credentialsId: 'github-credentials', 
+    //                 url: 'https://github.com/Rofiq02bae/nangkring.git'
+    //             
+    //             // Alternative: menggunakan checkout scm untuk automatic SCM detection
+    //             // checkout scm
+    //         }
+    //     }
+    // }
+        
+    // stage('Dependencies') {
+    //     parallel {
+    //         stage('Composer Install') {
+    //             steps {
+    //                 dir("${APP_DIR}") {
+    //                     sh 'composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev'
+    //                 }
+    //             }
+    //         }
+    //         stage('NPM Install') {
+    //             steps {
+    //                 dir("${APP_DIR}") {
+    //                     sh 'npm ci --only=production'
+    //                 }
+    //             }
+    //         }
+    //     }
+    // }
+        
+    // stage('Build') {
+    //     steps {
+    //         dir("${APP_DIR}") {
+    //             sh 'npm run build'
+    //         }
+    //     }
+    // }
+        
+    // stage('Migrate') {
+    //     steps {
+    //         script {
+    //             // Pastikan database service running
+    //             sh "docker-compose -f ${COMPOSE_FILE} up -d db"
+    //             // Wait for database to be ready
+    //             sh 'sleep 10'
+    //             // Run migrations
+    //             sh "docker-compose -f ${COMPOSE_FILE} exec -T app php artisan migrate --force"
+    //         }
+    //     }
+    // }
+        
+    // stage('Deploy') {
+    //     steps {
+    //         script {
+    //             // Pull latest image from Docker Hub
+    //             sh "docker pull rofiq02bae/laravel-vite-app:latest"
+    //             
+    //             // Restart Laravel container dengan image terbaru
+    //             sh "docker-compose -f ${COMPOSE_FILE} down app"
+    //             sh "docker-compose -f ${COMPOSE_FILE} up -d app"
+    //             
+    //             // Health check
+    //             sh 'sleep 10'
+    //             sh 'curl -f http://localhost:8000 || exit 1'
+    //             
+    //             echo "✅ Deployment successful with image: rofiq02bae/laravel-vite-app:latest"
+    //         }
+    //     }
+    // }
+    // }
+    
+    // post {
+    //     success {
+    //         echo '✅ Pipeline completed successfully! Laravel app deployed.'
+    //     }
+    //     failure {
+    //         echo '❌ Pipeline failed. Check logs for details.'
+    //         // Rollback jika diperlukan
+    //         sh "docker-compose -f ${COMPOSE_FILE} down || true"
+    //     }
+    //     always {
+    //         // Cleanup workspace
+    //         cleanWs()
+    //     }
+    // }
+    
     stages {
-        stage('Checkout') {
+        stage('Composer Install') {
+            agent {
+                docker { image 'composer:2' }
+            }
             steps {
-                script {
-                    // Checkout code from GitHub repository
-                    git branch: 'main', 
-                        credentialsId: 'github-credentials', 
-                        url: 'https://github.com/Rofiq02bae/nangkring.git'
-                    
-                    // Alternative: menggunakan checkout scm untuk automatic SCM detection
-                    // checkout scm
+                dir("${APP_DIR}") {
+                    sh 'composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev'
                 }
             }
         }
-        
-        stage('Dependencies') {
-            parallel {
-                stage('Composer Install') {
-                    steps {
-                        dir("${APP_DIR}") {
-                            sh 'composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev'
-                        }
-                    }
-                }
-                stage('NPM Install') {
-                    steps {
-                        dir("${APP_DIR}") {
-                            sh 'npm ci --only=production'
-                        }
-                    }
+
+        stage('NPM Install') {
+            agent {
+                docker { image 'node:18-alpine' }
+            }
+            steps {
+                dir("${APP_DIR}") {
+                    sh 'npm ci --only=production'
                 }
             }
         }
-        
+
         stage('Build') {
+            agent {
+                docker { image 'node:18-alpine' }
+            }
             steps {
                 dir("${APP_DIR}") {
                     sh 'npm run build'
                 }
             }
         }
-        
-        stage('Migrate') {
-            steps {
-                script {
-                    // Pastikan database service running
-                    sh "docker-compose -f ${COMPOSE_FILE} up -d db"
-                    // Wait for database to be ready
-                    sh 'sleep 10'
-                    // Run migrations
-                    sh "docker-compose -f ${COMPOSE_FILE} exec -T app php artisan migrate --force"
-                }
+
+        stage('Migrate & Deploy') {
+            agent {
+                docker { image 'docker/compose:1.29.2' } // sudah ada docker-compose
             }
-        }
-        
-        stage('Deploy') {
             steps {
                 script {
-                    // Pull latest image from Docker Hub
+                    // jalankan DB
+                    sh "docker-compose -f ${COMPOSE_FILE} up -d db"
+                    sh 'sleep 10'
+                    sh "docker-compose -f ${COMPOSE_FILE} exec -T app php artisan migrate --force"
+
+                    // pull image terbaru & restart app
                     sh "docker pull rofiq02bae/laravel-vite-app:latest"
-                    
-                    // Restart Laravel container dengan image terbaru
-                    sh "docker-compose -f ${COMPOSE_FILE} down app"
-                    sh "docker-compose -f ${COMPOSE_FILE} up -d app"
-                    
-                    // Health check
+                    sh "docker-compose -f ${COMPOSE_FILE} up -d app --force-recreate"
+
                     sh 'sleep 10'
                     sh 'curl -f http://localhost:8000 || exit 1'
-                    
-                    echo "✅ Deployment successful with image: rofiq02bae/laravel-vite-app:latest"
                 }
             }
         }
     }
-    
+
     post {
         success {
             echo '✅ Pipeline completed successfully! Laravel app deployed.'
         }
         failure {
             echo '❌ Pipeline failed. Check logs for details.'
-            // Rollback jika diperlukan
             sh "docker-compose -f ${COMPOSE_FILE} down || true"
         }
         always {
-            // Cleanup workspace
             cleanWs()
         }
     }
