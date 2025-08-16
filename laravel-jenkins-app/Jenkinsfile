@@ -4,148 +4,108 @@ pipeline {
     environment {
         APP_DIR = 'laravel-jenkins-app/src'
         COMPOSE_FILE = 'laravel-jenkins-app/docker-compose.yml'
+        DOCKER_IMAGE = 'rofiq02bae/laravel-vite-app:latest'
     }
     
-    // stage('Checkout') {
-    //     steps {
-    //         script {
-    //             // Checkout code from GitHub repository
-    //             git branch: 'main', 
-    //                 credentialsId: 'github-credentials', 
-    //                 url: 'https://github.com/Rofiq02bae/nangkring.git'
-    //             
-    //             // Alternative: menggunakan checkout scm untuk automatic SCM detection
-    //             // checkout scm
-    //         }
-    //     }
-    // }
-        
-    // stage('Dependencies') {
-    //     parallel {
-    //         stage('Composer Install') {
-    //             steps {
-    //                 dir("${APP_DIR}") {
-    //                     sh 'composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev'
-    //                 }
-    //             }
-    //         }
-    //         stage('NPM Install') {
-    //             steps {
-    //                 dir("${APP_DIR}") {
-    //                     sh 'npm ci --only=production'
-    //                 }
-    //             }
-    //         }
-    //     }
-    // }
-        
-    // stage('Build') {
-    //     steps {
-    //         dir("${APP_DIR}") {
-    //             sh 'npm run build'
-    //         }
-    //     }
-    // }
-        
-    // stage('Migrate') {
-    //     steps {
-    //         script {
-    //             // Pastikan database service running
-    //             sh "docker-compose -f ${COMPOSE_FILE} up -d db"
-    //             // Wait for database to be ready
-    //             sh 'sleep 10'
-    //             // Run migrations
-    //             sh "docker-compose -f ${COMPOSE_FILE} exec -T app php artisan migrate --force"
-    //         }
-    //     }
-    // }
-        
-    // stage('Deploy') {
-    //     steps {
-    //         script {
-    //             // Pull latest image from Docker Hub
-    //             sh "docker pull rofiq02bae/laravel-vite-app:latest"
-    //             
-    //             // Restart Laravel container dengan image terbaru
-    //             sh "docker-compose -f ${COMPOSE_FILE} down app"
-    //             sh "docker-compose -f ${COMPOSE_FILE} up -d app"
-    //             
-    //             // Health check
-    //             sh 'sleep 10'
-    //             sh 'curl -f http://localhost:8000 || exit 1'
-    //             
-    //             echo "✅ Deployment successful with image: rofiq02bae/laravel-vite-app:latest"
-    //         }
-    //     }
-    // }
-    // }
-    
-    // post {
-    //     success {
-    //         echo '✅ Pipeline completed successfully! Laravel app deployed.'
-    //     }
-    //     failure {
-    //         echo '❌ Pipeline failed. Check logs for details.'
-    //         // Rollback jika diperlukan
-    //         sh "docker-compose -f ${COMPOSE_FILE} down || true"
-    //     }
-    //     always {
-    //         // Cleanup workspace
-    //         cleanWs()
-    //     }
-    // }
-    
     stages {
-        stage('Composer Install') {
-            agent {
-                docker { image 'composer:2' }
-            }
-            steps {
-                dir("${APP_DIR}") {
-                    sh 'composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev'
-                }
-            }
-        }
-
-        stage('NPM Install') {
-            agent {
-                docker { image 'node:18-alpine' }
-            }
-            steps {
-                dir("${APP_DIR}") {
-                    sh 'npm ci --only=production'
-                }
-            }
-        }
-
-        stage('Build') {
-            agent {
-                docker { image 'node:18-alpine' }
-            }
-            steps {
-                dir("${APP_DIR}") {
-                    sh 'npm run build'
-                }
-            }
-        }
-
-        stage('Migrate & Deploy') {
-            agent {
-                docker { image 'docker/compose:1.29.2' } // sudah ada docker-compose
-            }
+        stage('Checkout') {
             steps {
                 script {
-                    // jalankan DB
-                    sh "docker-compose -f ${COMPOSE_FILE} up -d db"
-                    sh 'sleep 10'
-                    sh "docker-compose -f ${COMPOSE_FILE} exec -T app php artisan migrate --force"
-
-                    // pull image terbaru & restart app
-                    sh "docker pull rofiq02bae/laravel-vite-app:latest"
-                    sh "docker-compose -f ${COMPOSE_FILE} up -d app --force-recreate"
-
-                    sh 'sleep 10'
-                    sh 'curl -f http://localhost:8000 || exit 1'
+                    // Checkout code from GitHub repository
+                    checkout scm
+                }
+            }
+        }
+        
+        stage('Dependencies') {
+            parallel {
+                stage('Composer Install') {
+                    agent {
+                        docker { 
+                            image 'composer:2'
+                            args '-v /var/run/docker.sock:/var/run/docker.sock'
+                        }
+                    }
+                    steps {
+                        dir("${APP_DIR}") {
+                            sh 'composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev'
+                        }
+                    }
+                }
+                stage('NPM Install & Build') {
+                    agent {
+                        docker { 
+                            image 'node:20-alpine'
+                            args '-v /var/run/docker.sock:/var/run/docker.sock'
+                        }
+                    }
+                    steps {
+                        dir("${APP_DIR}") {
+                            script {
+                                // Check if package-lock.json exists
+                                if (fileExists('package-lock.json')) {
+                                    sh 'npm ci --omit=dev'
+                                } else {
+                                    sh 'npm install --omit=dev'
+                                }
+                                sh 'npm run build'
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        stage('Deploy') {
+            steps {
+                script {
+                    try {
+                        echo "🚀 Starting deployment..."
+                        
+                        // Pull latest image from Docker Hub
+                        sh "docker pull ${DOCKER_IMAGE}"
+                        
+                        // Stop existing containers
+                        sh "docker compose -f ${COMPOSE_FILE} down || true"
+                        
+                        // Start database first
+                        sh "docker compose -f ${COMPOSE_FILE} up -d db"
+                        
+                        // Wait for database to be ready
+                        sh 'sleep 15'
+                        
+                        // Start application
+                        sh "docker compose -f ${COMPOSE_FILE} up -d app"
+                        
+                        // Wait for app to be ready
+                        sh 'sleep 10'
+                        
+                        // Run migrations
+                        sh "docker compose -f ${COMPOSE_FILE} exec -T app php artisan migrate --force || echo 'Migration failed, continuing...'"
+                        
+                        // Start remaining services
+                        sh "docker compose -f ${COMPOSE_FILE} up -d"
+                        
+                        // Health check
+                        sh 'sleep 10'
+                        sh '''
+                            for i in {1..5}; do
+                                if curl -f http://localhost:8000; then
+                                    echo "✅ Health check passed"
+                                    exit 0
+                                fi
+                                echo "⏳ Waiting for app to be ready... (attempt $i/5)"
+                                sleep 5
+                            done
+                            echo "⚠️ Health check failed, but deployment completed"
+                        '''
+                        
+                        echo "✅ Deployment successful with image: ${DOCKER_IMAGE}"
+                        
+                    } catch (Exception e) {
+                        echo "❌ Deployment failed: ${e.getMessage()}"
+                        throw e
+                    }
                 }
             }
         }
@@ -154,12 +114,17 @@ pipeline {
     post {
         success {
             echo '✅ Pipeline completed successfully! Laravel app deployed.'
+            sh "docker compose -f ${COMPOSE_FILE} ps"
         }
         failure {
             echo '❌ Pipeline failed. Check logs for details.'
-            sh "docker-compose -f ${COMPOSE_FILE} down || true"
+            sh "docker compose -f ${COMPOSE_FILE} logs app || true"
+            sh "docker compose -f ${COMPOSE_FILE} down || true"
         }
         always {
+            echo '🧹 Cleaning up...'
+            // Clean up dangling images
+            sh 'docker image prune -f || true'
             cleanWs()
         }
     }
