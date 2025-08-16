@@ -166,19 +166,19 @@ jobs:
           sed -i 's|# dockerfile: Dockerfile|dockerfile: Dockerfile|g' docker-compose.yml
           
           # Start services
-          docker-compose up -d
+          docker compose up -d
           
           # Wait for services
           sleep 30
           
           # Check services
-          docker-compose ps
+          docker compose ps
           
           # Test health
-          docker-compose exec -T app php --version || echo "PHP check failed"
+          docker compose exec -T app php --version || echo "PHP check failed"
           
           # Cleanup
-          docker-compose down
+          docker compose down
 
   security-scan:
     runs-on: ubuntu-latest
