@@ -98,3 +98,24 @@ jobs:
           echo "🚀 Docker image rofiq02bae/laravel-vite-app:latest successfully built and pushed!"
           echo "📦 Image size: $(docker manifest inspect rofiq02bae/laravel-vite-app:latest | jq '.config.size')"
           echo "🔗 Docker Hub: https://hub.docker.com/r/rofiq02bae/laravel-vite-app"
+
+  deploy-to-azure:
+    runs-on: ubuntu-latest
+    needs: [build-and-push, security-scan]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy to Azure Container Apps
+        run: |
+          az containerapp update \
+            --name laravel-vite \
+            --resource-group dev \
+            --image rofiq02bae/laravel-vite-app:latest
