@@ -98,7 +98,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ./laravel-jenkins-app/src/node_modules
-          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
+          key: ${{ runner.os }}-npm-${{ hashFiles('./laravel-jenkins-app/src/package-lock.json', './laravel-jenkins-app/src/package.json') }}
           restore-keys: |
             ${{ runner.os }}-npm-
 
@@ -106,7 +106,13 @@ jobs:
         if: hashFiles('./laravel-jenkins-app/src/package.json') != ''
         run: |
           cd ./laravel-jenkins-app/src
-          npm ci --prefer-offline --no-audit
+          if [ -f "package-lock.json" ]; then
+            echo "📦 Using npm ci with existing package-lock.json"
+            npm ci --prefer-offline --no-audit
+          else
+            echo "📦 Using npm install (no package-lock.json found)"
+            npm install --prefer-offline --no-audit
+          fi
 
       - name: Build assets
         if: hashFiles('./laravel-jenkins-app/src/package.json') != ''
