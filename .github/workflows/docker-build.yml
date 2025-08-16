@@ -71,10 +71,13 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: 'rofiq02bae/laravel-vite-app:latest'
+          image-ref: ${{ env.DOCKER_HUB_USERNAME }}/${{ env.LARAVEL_IMAGE_NAME }}:latest
           format: 'sarif'
           output: 'trivy-results.sarif'
 
@@ -83,6 +86,7 @@ jobs:
         if: always()
         with:
           sarif_file: 'trivy-results.sarif'
+          token: ${{ secrets.GITHUB_TOKEN }}
 
   deploy:
     runs-on: ubuntu-latest
