@@ -39,6 +39,6 @@ COPY laravel-jenkins-app/src/ /var/www
 # Set permissions
 RUN chown -R www-data:www-data /var/www
 
-EXPOSE 8000
+EXPOSE 80
 CMD ["php-fpm"]
 CMD ["sh", "-c", "/usr/games/fortune -a | cowsay"]

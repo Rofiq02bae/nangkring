@@ -43,6 +43,6 @@ RUN npm install
 RUN npm run build
 
 # Expose port 9000 for PHP-FPM
-EXPOSE 9000
+EXPOSE 80
 
 CMD ["php-fpm"]
